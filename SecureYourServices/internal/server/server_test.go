@@ -34,8 +34,8 @@ func TestServer(t *testing.T) {
 		// END: func_update
 		// START: test_table
 		"produce/consume a message to/from the log succeeeds": testProduceConsume,
-		"produce/consume stream succeeds": testProduceConsumeStream,
-		"consume past log boundary fails": testConsumePastBoundary,
+		"produce/consume stream succeeds":                     testProduceConsumeStream,
+		"consume past log boundary fails":                     testConsumePastBoundary,
 		// START_HIGHLIGHT
 		"unauthorized fails": testUnauthorized,
 		// END_HIGHLIGHT
@@ -159,7 +159,7 @@ func testProduceConsume(t *testing.T, client, _ api.LogClient, config *Config) {
 	}
 
 	produce, err := client.Produce(
-		context.Background(),
+		ctx,
 		&api.ProduceRequest{
 			Record: want,
 		},
@@ -170,7 +170,8 @@ func testProduceConsume(t *testing.T, client, _ api.LogClient, config *Config) {
 		Offset: produce.Offset,
 	})
 	require.NoError(t, err)
-	require.Equal(t, want, consume.Record)
+	require.Equal(t, want.Value, consume.Record.Value)
+	require.Equal(t, want.Offset, consume.Record.Offset)
 }
 
 // END: produceconsume
@@ -250,10 +251,13 @@ func testProduceConsumeStream(
 		)
 		require.NoError(t, err)
 
-		for _, record := range records {
+		for i, record := range records {
 			res, err := stream.Recv()
 			require.NoError(t, err)
-			require.Equal(t, res.Record, record)
+			require.Equal(t, res.Record, &api.Record{
+				Value:  record.Value,
+				Offset: uint64(i),
+			})
 		}
 	}
 }
@@ -268,7 +272,7 @@ func testUnauthorized(
 	config *Config,
 ) {
 	ctx := context.Background()
-	produce, err := client.Produce(context.Background(),
+	produce, err := client.Produce(ctx,
 		&api.ProduceRequest{
 			Record: &api.Record{
 				Value: []byte("hello world"),

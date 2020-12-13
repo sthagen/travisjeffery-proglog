@@ -9,8 +9,7 @@ import (
 )
 
 var (
-	enc  = binary.BigEndian
-	size = make([]byte, lenWidth)
+	enc = binary.BigEndian
 )
 
 const (
@@ -59,12 +58,13 @@ func (s *store) Append(p []byte) (n uint64, pos uint64, err error) {
 // END: append
 
 // START: readat
-func (s *store) ReadAt(pos uint64) ([]byte, error) {
+func (s *store) Read(pos uint64) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.buf.Flush(); err != nil {
 		return nil, err
 	}
+	size := make([]byte, lenWidth)
 	if _, err := s.File.ReadAt(size, int64(pos)); err != nil {
 		return nil, err
 	}
@@ -76,3 +76,26 @@ func (s *store) ReadAt(pos uint64) ([]byte, error) {
 }
 
 // END: readat
+
+// START: rawreadat
+func (s *store) ReadAt(p []byte, off int64) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.buf.Flush(); err != nil {
+		return 0, err
+	}
+	return s.File.ReadAt(p, off)
+}
+// END: rawreadat
+
+// START: close
+func (s *store) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := s.buf.Flush()
+	if err != nil {
+		return err
+	}
+	return s.File.Close()
+}
+// END: close
